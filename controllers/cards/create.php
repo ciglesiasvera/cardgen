@@ -60,9 +60,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'bank_name' => sanitizeInput($_POST['bank_name'] ?? ''),
                 'account_type' => sanitizeInput($_POST['account_type'] ?? ''),
                 'account_number' => sanitizeInput($_POST['account_number'] ?? ''),
-                'name' => sanitizeInput($_POST['name'] ?? ''),
-                'rut' => sanitizeInput($_POST['rut'] ?? ''),
-                'email' => sanitizeInput($_POST['email'] ?? '')
+                'name' => sanitizeInput($_POST['bank_holder_name'] ?? ''),
+                'rut' => sanitizeInput($_POST['bank_rut'] ?? ''),
+                'email' => sanitizeInput($_POST['bank_email'] ?? '')
             ];
             $data['card_data'] = $bank_data;
             
@@ -73,8 +73,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'industry' => sanitizeInput($_POST['industry'] ?? ''),
                 'address' => sanitizeInput($_POST['address'] ?? ''),
                 'phone' => sanitizeInput($_POST['phone'] ?? ''),
-                'email' => sanitizeInput($_POST['email'] ?? ''),
-                'rut' => sanitizeInput($_POST['rut'] ?? '')
+                'email' => sanitizeInput($_POST['tax_email'] ?? ''),
+                'rut' => sanitizeInput($_POST['tax_rut'] ?? '')
             ];
             $data['card_data'] = $tax_data;
             
@@ -194,17 +194,17 @@ ob_start();
                     </div>
                     <div class="form-group">
                         <label>Nombre Empresa/Persona</label>
-                        <input type="text" name="name" 
+                        <input type="text" name="bank_holder_name" 
                                value="<?php echo htmlspecialchars($card_data['name'] ?? ''); ?>">
                     </div>
                     <div class="form-group">
                         <label>RUT</label>
-                        <input type="text" name="rut" 
+                        <input type="text" name="bank_rut" 
                                value="<?php echo htmlspecialchars($card_data['rut'] ?? ''); ?>">
                     </div>
                     <div class="form-group">
                         <label>Correo</label>
-                        <input type="email" name="email" 
+                        <input type="email" name="bank_email" 
                                value="<?php echo htmlspecialchars($card_data['email'] ?? ''); ?>">
                     </div>
                 </div>
@@ -238,12 +238,12 @@ ob_start();
                     </div>
                     <div class="form-group">
                         <label>Correo</label>
-                        <input type="email" name="email" 
+                        <input type="email" name="tax_email" 
                                value="<?php echo htmlspecialchars($card_data['email'] ?? ''); ?>">
                     </div>
                     <div class="form-group">
                         <label>RUT</label>
-                        <input type="text" name="rut" 
+                        <input type="text" name="tax_rut" 
                                value="<?php echo htmlspecialchars($card_data['rut'] ?? ''); ?>">
                     </div>
                 </div>
@@ -689,24 +689,17 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     function updatePreview() {
-        const form = document.getElementById('card-form');
-        const formData = new FormData(form);
-        const data = {};
+        const cardType = document.querySelector('input[name="card_type"]:checked')?.value || '';
         
-        // Convertir FormData a objeto simple
-        for (let [key, value] of formData.entries()) {
-            data[key] = value;
-        }
+        // Obtener configuración visual
+        const bgColor = document.querySelector('input[name="background_color"]').value || '#FFFFFF';
+        const textColor = document.querySelector('input[name="text_color"]').value || '#000000';
+        const fontSize = document.querySelector('input[name="font_size"]').value || '14';
+        const fontFamily = document.querySelector('select[name="font_family"]').value || 'Arial';
+        const alignment = document.querySelector('select[name="alignment"]').value || 'left';
         
         // Crear HTML de vista previa
-        let previewHTML = '';
-        const bgColor = data.background_color || '#FFFFFF';
-        const textColor = data.text_color || '#000000';
-        const fontSize = data.font_size || '14';
-        const fontFamily = data.font_family || 'Arial';
-        const alignment = data.alignment || 'left';
-        
-        previewHTML = `
+        let previewHTML = `
             <div class="preview-card" style="
                 background: ${bgColor};
                 color: ${textColor};
@@ -723,45 +716,87 @@ document.addEventListener('DOMContentLoaded', function() {
             ">
         `;
         
-        // Contenido según tipo
-        const cardType = data.card_type;
-        
-        if (cardType === 'bank' && data.bank_name) {
-            previewHTML += `
-                <h2 style="margin-bottom: 1rem;">${data.bank_name}</h2>
-                <p><strong>Tipo de Cuenta:</strong> ${data.account_type || ''}</p>
-                <p><strong>Número:</strong> ${data.account_number || ''}</p>
-                <p><strong>Nombre:</strong> ${data.name || ''}</p>
-                <p><strong>RUT:</strong> ${data.rut || ''}</p>
-                <p><strong>Email:</strong> ${data.email || ''}</p>
-            `;
-        } else if (cardType === 'tax' && data.company_name) {
-            previewHTML += `
-                <h2 style="margin-bottom: 1rem;">${data.company_name}</h2>
-                <p><strong>Razón Social:</strong> ${data.business_name || ''}</p>
-                <p><strong>Giro:</strong> ${data.industry || ''}</p>
-                <p><strong>Dirección:</strong> ${data.address || ''}</p>
-                <p><strong>Teléfono:</strong> ${data.phone || ''}</p>
-                <p><strong>Email:</strong> ${data.email || ''}</p>
-                <p><strong>RUT:</strong> ${data.rut || ''}</p>
-            `;
-        } else if (cardType === 'custom' && data.custom_title) {
-            previewHTML += `<h2 style="margin-bottom: 1rem;">${data.custom_title}</h2>`;
+        // Contenido según tipo - USAR LOS NOMBRES DE CAMPO CORRECTOS
+        if (cardType === 'bank') {
+            const bankName = document.querySelector('input[name="bank_name"]').value || '';
+            const accountType = document.querySelector('input[name="account_type"]').value || '';
+            const accountNumber = document.querySelector('input[name="account_number"]').value || '';
+            const holderName = document.querySelector('input[name="bank_holder_name"]').value || '';
+            const rut = document.querySelector('input[name="bank_rut"]').value || '';
+            const email = document.querySelector('input[name="bank_email"]').value || '';
             
-            // Campos dinámicos
-            const keys = Array.from(document.querySelectorAll('input[name="field_keys[]"]'));
-            const values = Array.from(document.querySelectorAll('input[name="field_values[]"]'));
+            if (bankName) {
+                previewHTML += `
+                    <h2 style="margin-bottom: 1rem;">${bankName}</h2>
+                    <p><strong>Tipo de Cuenta:</strong> ${accountType}</p>
+                    <p><strong>Número:</strong> ${accountNumber}</p>
+                    <p><strong>Nombre:</strong> ${holderName}</p>
+                    <p><strong>RUT:</strong> ${rut}</p>
+                    <p><strong>Email:</strong> ${email}</p>
+                `;
+            } else {
+                previewHTML += `
+                    <div class="preview-placeholder">
+                        <i class="fas fa-id-card fa-3x"></i>
+                        <p>Completa el formulario para ver la vista previa</p>
+                    </div>
+                `;
+            }
+        } else if (cardType === 'tax') {
+            const companyName = document.querySelector('input[name="company_name"]').value || '';
+            const businessName = document.querySelector('input[name="business_name"]').value || '';
+            const industry = document.querySelector('input[name="industry"]').value || '';
+            const address = document.querySelector('input[name="address"]').value || '';
+            const phone = document.querySelector('input[name="phone"]').value || '';
+            const email = document.querySelector('input[name="tax_email"]').value || '';
+            const rut = document.querySelector('input[name="tax_rut"]').value || '';
             
-            for (let i = 0; i < keys.length; i++) {
-                if (keys[i].value && values[i].value) {
-                    previewHTML += `<p><strong>${keys[i].value}:</strong> ${values[i].value}</p>`;
+            if (companyName) {
+                previewHTML += `
+                    <h2 style="margin-bottom: 1rem;">${companyName}</h2>
+                    <p><strong>Razón Social:</strong> ${businessName}</p>
+                    <p><strong>Giro:</strong> ${industry}</p>
+                    <p><strong>Dirección:</strong> ${address}</p>
+                    <p><strong>Teléfono:</strong> ${phone}</p>
+                    <p><strong>Email:</strong> ${email}</p>
+                    <p><strong>RUT:</strong> ${rut}</p>
+                `;
+            } else {
+                previewHTML += `
+                    <div class="preview-placeholder">
+                        <i class="fas fa-id-card fa-3x"></i>
+                        <p>Completa el formulario para ver la vista previa</p>
+                    </div>
+                `;
+            }
+        } else if (cardType === 'custom') {
+            const customTitle = document.querySelector('input[name="custom_title"]').value || '';
+            
+            if (customTitle) {
+                previewHTML += `<h2 style="margin-bottom: 1rem;">${customTitle}</h2>`;
+                
+                // Campos dinámicos
+                const keys = Array.from(document.querySelectorAll('input[name="field_keys[]"]'));
+                const values = Array.from(document.querySelectorAll('input[name="field_values[]"]'));
+                
+                for (let i = 0; i < keys.length; i++) {
+                    if (keys[i].value && values[i].value) {
+                        previewHTML += `<p><strong>${keys[i].value}:</strong> ${values[i].value}</p>`;
+                    }
                 }
+            } else {
+                previewHTML += `
+                    <div class="preview-placeholder">
+                        <i class="fas fa-id-card fa-3x"></i>
+                        <p>Completa el formulario para ver la vista previa</p>
+                    </div>
+                `;
             }
         } else {
             previewHTML += `
                 <div class="preview-placeholder">
                     <i class="fas fa-id-card fa-3x"></i>
-                    <p>Completa el formulario para ver la vista previa</p>
+                    <p>Selecciona un tipo de tarjeta</p>
                 </div>
             `;
         }
@@ -770,9 +805,9 @@ document.addEventListener('DOMContentLoaded', function() {
         cardPreview.innerHTML = previewHTML;
         
         // Habilitar botón de exportación si hay contenido
-        const hasContent = (cardType === 'bank' && data.bank_name) || 
-                          (cardType === 'tax' && data.company_name) || 
-                          (cardType === 'custom' && data.custom_title);
+        const hasContent = (cardType === 'bank' && document.querySelector('input[name="bank_name"]').value) || 
+                          (cardType === 'tax' && document.querySelector('input[name="company_name"]').value) || 
+                          (cardType === 'custom' && document.querySelector('input[name="custom_title"]').value);
         
         exportBtn.disabled = !hasContent;
     }
@@ -780,8 +815,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Exportar (simulado)
     exportBtn.addEventListener('click', function() {
         alert('En la versión completa, esto descargaría la tarjeta como PNG/JPG');
-        // En la implementación real, aquí se llamaría al endpoint de exportación
-        // window.location.href = '/export?from=preview&data=' + encodeURIComponent(JSON.stringify(data));
     });
     
     // Inicializar vista previa
