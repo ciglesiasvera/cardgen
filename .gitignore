@@ -1,0 +1,10 @@
+/vendor
+/node_modules
+/config/database.php
+/config/smtp.php
+/logs
+.env
+.DS_Store
+*.log
+/public/uploads/temp/*
+!/public/uploads/temp/.gitkeep

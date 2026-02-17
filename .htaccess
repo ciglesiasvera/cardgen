@@ -1,0 +1,20 @@
+# Apache .htaccess simplificado para CardGen Pro - Compatible con Apache 2.4+
+RewriteEngine On
+
+# Redirigir todo a index.php para enrutamiento
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php?path=$1 [QSA,L]
+
+# Seguridad básica
+Options -Indexes
+
+# Bloquear archivos sensibles (sintaxis Apache 2.4)
+<FilesMatch "\.(sql|ini|log|bak)$">
+  Require all denied
+</FilesMatch>
+
+# Comprimir archivos (opcional)
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
+</IfModule>

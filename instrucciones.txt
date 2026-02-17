@@ -1,0 +1,339 @@
+A continuación se presenta la **especificación detallada de requerimientos** para la aplicación web de generación de tarjetas digitales personalizadas.
+
+---
+
+# 1. Descripción General del Proyecto
+
+## 1.1 Nombre Tentativo
+
+**CardGen Pro** (nombre referencial)
+
+## 1.2 Objetivo General
+
+Desarrollar una aplicación web que permita a usuarios registrados generar **tarjetas digitales personalizadas** (bancarias, tributarias y corporativas), configurables en diseño, estructura, colores, campos dinámicos y formato de descarga (PNG/JPG).
+
+## 1.3 Propuesta de Valor
+
+* Generación rápida de tarjetas digitales listas para compartir.
+* Personalización flexible (colores, logos, estructura).
+* Descarga en múltiples formatos y proporciones.
+* Uso gratuito con registro obligatorio.
+* Monetización mediante Google Ads.
+
+---
+
+# 2. Stack Tecnológico
+
+## Backend
+
+* **PHP 8.x**
+* Arquitectura MVC básica o estructuración modular
+* Manejo de sesiones con PHP Session
+* Validación backend obligatoria
+
+## Frontend
+
+* HTML5
+* CSS3 (Flexbox / Grid)
+* JavaScript Vanilla (o con apoyo ligero de librería tipo jQuery si se requiere)
+* Canvas API o HTML to Image (ej. html2canvas) para exportación a PNG/JPG
+
+## Base de Datos
+
+* MySQL 8.x
+
+## Infraestructura
+
+* Hosting compartido o VPS compatible con PHP/MySQL
+* Integración Google Ads
+* SMTP para verificación de correo
+
+---
+
+# 3. Requerimientos Funcionales
+
+## 3.1 Registro y Autenticación
+
+### RF-01 Registro de Usuario
+
+El usuario deberá:
+
+* Ingresar correo electrónico
+* Crear contraseña
+* Confirmar contraseña
+* Aceptar términos y condiciones
+
+El sistema deberá:
+
+* Validar formato de correo
+* Validar contraseña (mínimo 8 caracteres)
+* Enviar correo de verificación
+* Activar cuenta tras confirmación
+
+### RF-02 Inicio de Sesión
+
+* Login con correo y contraseña
+* Recuperación de contraseña vía email
+* Manejo de sesión activa
+
+---
+
+## 3.2 Generación de Tarjetas
+
+### RF-03 Selección de Tipo de Tarjeta
+
+El usuario podrá elegir:
+
+1. **Tarjeta de Datos Bancarios**
+
+   * Nombre del banco
+   * Tipo de cuenta
+   * Número de cuenta
+   * Nombre empresa/persona
+   * RUT
+   * Correo
+   * Logo del banco (subido por usuario)
+   * Logo adicional opcional
+
+2. **Tarjeta de Datos Tributarios**
+
+   * Nombre empresa
+   * Razón social
+   * Giro
+   * Dirección
+   * Teléfono
+   * Correo
+   * RUT
+   * Logo empresa
+
+3. **Tarjeta Personalizada**
+
+   * Campos dinámicos agregables
+   * Título configurable
+   * Subtítulos opcionales
+   * Campos ilimitados (estructura key:value)
+
+---
+
+### RF-04 Personalización Visual
+
+El usuario podrá:
+
+* Seleccionar color de fondo (color picker)
+* Seleccionar color de texto
+* Elegir alineación (centrado, izquierda, derecha)
+* Elegir estructura:
+
+  * 1:1 (cuadrado)
+  * 16:9
+  * 2x4 vertical
+  * Formato personalizado (alto/ancho en px)
+* Seleccionar tipografía básica (lista predefinida)
+* Ajustar tamaño de fuente
+
+---
+
+### RF-05 Subida de Logos
+
+* Carga de imágenes PNG/JPG
+* Validación de tamaño máximo (ej. 2MB)
+* Redimensionamiento automático
+* Vista previa en tiempo real
+* Almacenamiento temporal (no permanente en servidor)
+
+---
+
+### RF-06 Vista Previa Dinámica
+
+* Renderizado en tiempo real
+* Actualización instantánea al modificar campos
+* Simulación exacta del tamaño final
+
+---
+
+### RF-07 Exportación
+
+El usuario podrá:
+
+* Descargar como PNG
+* Descargar como JPG
+* Resoluciones:
+
+  * Baja (web)
+  * Media
+  * Alta (300 DPI equivalente)
+
+La exportación se realizará usando:
+
+* HTML Canvas o html2canvas
+* Conversión a Blob
+* Descarga automática
+
+---
+
+# 4. Requerimientos No Funcionales
+
+## 4.1 Seguridad
+
+* Hash de contraseñas con bcrypt
+* Sanitización de inputs (prevención XSS y SQL Injection)
+* Prepared Statements (PDO o MySQLi)
+* Validación frontend y backend
+* Límite de carga de archivos
+* Restricción MIME type imágenes
+
+---
+
+## 4.2 Rendimiento
+
+* Carga menor a 3 segundos
+* Optimización de imágenes
+* Uso de caché navegador
+* Lazy load para anuncios
+
+---
+
+## 4.3 Escalabilidad
+
+* Estructura modular
+* Separación lógica presentación/backend
+* Preparado para futura API REST
+
+---
+
+## 4.4 Compatibilidad
+
+* Responsive design
+* Compatible con:
+
+  * Chrome
+  * Edge
+  * Firefox
+  * Safari
+* Diseño mobile-first
+
+---
+
+# 5. Base de Datos (Modelo Inicial)
+
+## Tabla: users
+
+* id (PK)
+* email (unique)
+* password_hash
+* is_verified
+* created_at
+
+## Tabla: cards
+
+* id (PK)
+* user_id (FK)
+* card_type
+* card_data (JSON)
+* background_color
+* text_color
+* format_ratio
+* created_at
+
+---
+
+# 6. Monetización
+
+## Google Ads
+
+* Integración con Google AdSense
+* Ubicaciones:
+
+  * Header
+  * Sidebar
+  * Entre formulario y vista previa
+* No interferir con funcionalidad principal
+* Cumplimiento políticas AdSense
+
+---
+
+# 7. Flujo de Usuario
+
+1. Usuario accede al sitio
+2. Se registra
+3. Verifica correo
+4. Inicia sesión
+5. Selecciona tipo de tarjeta
+6. Completa campos (en caso de requerir + campos los puede agregar presinando un botón "+" que permite agregar campos.
+7. Personaliza diseño
+8. Visualiza preview
+9. Descarga PNG/JPG
+10. Opcionalmente guarda diseño
+
+---
+
+# 8. Reglas de Negocio
+
+* Solo usuarios registrados pueden descargar
+* No se permite contenido ofensivo (opcional filtro básico)
+* Límite de generación por día (opcional)
+* Logos no se almacenan permanentemente
+
+---
+
+# 9. Futuras Extensiones (No Incluidas en MVP)
+
+* Plantillas prediseñadas
+* QR dinámico
+* Generación de enlace público
+* Guardado en nube
+* Plan premium sin publicidad
+* API pública
+
+---
+
+# 10. Alcance del MVP
+
+Incluye:
+
+* Registro/login
+* Generador dinámico
+* Subida de logo
+* Personalización básica
+* Descarga PNG/JPG
+* Google Ads
+
+No incluye:
+
+* Pasarela de pago
+* Multiusuario empresarial
+* Historial avanzado
+* Edición colaborativa
+
+---
+
+# 11. Requerimientos UX/UI
+
+* Interfaz limpia
+* Formulario en panel izquierdo
+* Vista previa en panel derecho
+* Botón principal: “Generar y Descargar”
+* Indicadores visuales claros
+* Feedback de errores inmediato
+
+---
+
+# 12. Consideraciones Técnicas Críticas
+
+* Uso obligatorio de prepared statements
+* Separar lógica de render y lógica de persistencia
+* No almacenar imágenes innecesariamente
+* Implementar política de privacidad visible
+* Consentimiento de cookies (Google Ads)
+
+---
+
+Si deseas, puedo ahora:
+
+* Generar la estructura de carpetas del proyecto
+* Generar el modelo de base de datos en SQL
+* Generar el diagrama de arquitectura
+* Generar el backlog técnico en formato Scrum
+* Generar los prompts optimizados para tu IA del IDE
+
+Indícame el siguiente paso.
