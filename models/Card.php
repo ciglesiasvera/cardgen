@@ -7,6 +7,7 @@ class Card {
     private $card_data;
     private $background_color;
     private $text_color;
+    private $title_color;
     private $format_ratio;
     private $font_family;
     private $font_size;
@@ -20,15 +21,14 @@ class Card {
         $this->db = getDBConnection();
     }
 
-    // Crear una nueva tarjeta
     public function create($user_id, $data) {
         try {
             $stmt = $this->db->prepare("
                 INSERT INTO cards (
-                    user_id, card_type, card_data, background_color, text_color,
+                    user_id, card_type, card_data, background_color, text_color, title_color,
                     format_ratio, font_family, font_size, alignment, logo_url, logo_url2
                 ) VALUES (
-                    :user_id, :card_type, :card_data, :background_color, :text_color,
+                    :user_id, :card_type, :card_data, :background_color, :text_color, :title_color,
                     :format_ratio, :font_family, :font_size, :alignment, :logo_url, :logo_url2
                 )
             ");
@@ -39,6 +39,7 @@ class Card {
                 ':card_data' => json_encode($data['card_data'], JSON_UNESCAPED_UNICODE),
                 ':background_color' => $data['background_color'] ?? '#FFFFFF',
                 ':text_color' => $data['text_color'] ?? '#000000',
+                ':title_color' => $data['title_color'] ?? ($data['text_color'] ?? '#000000'),
                 ':format_ratio' => $data['format_ratio'] ?? '16:9',
                 ':font_family' => $data['font_family'] ?? 'Arial',
                 ':font_size' => $data['font_size'] ?? 14,
@@ -54,11 +55,10 @@ class Card {
         }
     }
 
-    // Obtener tarjetas por usuario
     public function getByUser($user_id, $limit = 20, $offset = 0) {
         $stmt = $this->db->prepare("
-            SELECT id, card_type, card_data, background_color, text_color, 
-                   format_ratio, font_family, font_size, alignment, created_at
+            SELECT id, card_type, card_data, background_color, text_color, title_color,
+                   format_ratio, font_family, font_size, alignment, logo_url, logo_url2, created_at
             FROM cards 
             WHERE user_id = :user_id 
             ORDER BY created_at DESC 
@@ -72,15 +72,16 @@ class Card {
         
         $cards = $stmt->fetchAll();
         
-        // Decodificar JSON
         foreach ($cards as &$card) {
             $card['card_data'] = json_decode($card['card_data'], true);
+            if (empty($card['title_color'])) {
+                $card['title_color'] = $card['text_color'];
+            }
         }
         
         return $cards;
     }
 
-    // Obtener tarjeta por ID
     public function getById($id, $user_id = null) {
         $sql = "SELECT * FROM cards WHERE id = :id";
         $params = [':id' => $id];
@@ -97,15 +98,16 @@ class Card {
         
         if ($card) {
             $card['card_data'] = json_decode($card['card_data'], true);
+            if (empty($card['title_color'])) {
+                $card['title_color'] = $card['text_color'];
+            }
         }
         
         return $card;
     }
 
-    // Actualizar tarjeta
     public function update($id, $user_id, $data) {
         try {
-            // Primero verificar que la tarjeta pertenezca al usuario
             $existing = $this->getById($id, $user_id);
             if (!$existing) {
                 return ['success' => false, 'message' => 'Tarjeta no encontrada'];
@@ -127,6 +129,11 @@ class Card {
             if (isset($data['text_color'])) {
                 $update_fields[] = 'text_color = :text_color';
                 $params[':text_color'] = $data['text_color'];
+            }
+            
+            if (isset($data['title_color'])) {
+                $update_fields[] = 'title_color = :title_color';
+                $params[':title_color'] = $data['title_color'];
             }
             
             if (isset($data['format_ratio'])) {
@@ -175,7 +182,6 @@ class Card {
         }
     }
 
-    // Eliminar tarjeta
     public function delete($id, $user_id) {
         try {
             $stmt = $this->db->prepare("DELETE FROM cards WHERE id = :id AND user_id = :user_id");
@@ -187,7 +193,6 @@ class Card {
         }
     }
 
-    // Obtener estadísticas del usuario
     public function getUserStats($user_id) {
         $stmt = $this->db->prepare("
             SELECT 
@@ -204,13 +209,13 @@ class Card {
         return $stmt->fetch();
     }
 
-    // Métodos getter
     public function getId() { return $this->id; }
     public function getUserId() { return $this->user_id; }
     public function getCardType() { return $this->card_type; }
     public function getCardData() { return $this->card_data; }
     public function getBackgroundColor() { return $this->background_color; }
     public function getTextColor() { return $this->text_color; }
+    public function getTitleColor() { return $this->title_color; }
     public function getFormatRatio() { return $this->format_ratio; }
     public function getCreatedAt() { return $this->created_at; }
 }

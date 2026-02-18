@@ -37,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $card_type = sanitizeInput($_POST['card_type'] ?? '');
     $background_color = sanitizeInput($_POST['background_color'] ?? '#FFFFFF');
     $text_color = sanitizeInput($_POST['text_color'] ?? '#000000');
+    $title_color = sanitizeInput($_POST['title_color'] ?? '#000000');
     $format_ratio = sanitizeInput($_POST['format_ratio'] ?? '16:9');
     $font_family = sanitizeInput($_POST['font_family'] ?? 'Arial');
     $font_size = intval($_POST['font_size'] ?? 14);
@@ -49,6 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Color de fondo inválido';
     } elseif (!preg_match('/^#[0-9A-Fa-f]{6}$/', $text_color)) {
         $error = 'Color de texto inválido';
+    } elseif (!preg_match('/^#[0-9A-Fa-f]{6}$/', $title_color)) {
+        $error = 'Color de título inválido';
     } elseif ($font_size < 8 || $font_size > 72) {
         $error = 'Tamaño de fuente inválido (8-72)';
     } else {
@@ -105,19 +108,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Configuración visual
         $data['background_color'] = $background_color;
         $data['text_color'] = $text_color;
+        $data['title_color'] = $title_color;
         $data['format_ratio'] = $format_ratio;
         $data['font_family'] = $font_family;
         $data['font_size'] = $font_size;
         $data['alignment'] = $alignment;
         
-        // Manejar subida de logos (simulado por ahora)
+        // Manejar subida de logos
+        $upload_dir = __DIR__ . '/../../public/uploads/logos/';
+        if (!is_dir($upload_dir)) {
+            mkdir($upload_dir, 0755, true);
+        }
+        
         if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
-            // En un entorno real, aquí se procesaría la imagen
-            $data['logo_url'] = '/public/uploads/temp/logo_' . uniqid() . '.png';
+            $file_ext = strtolower(pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION));
+            $allowed_ext = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+            
+            if (in_array($file_ext, $allowed_ext) && $_FILES['logo']['size'] <= 2 * 1024 * 1024) {
+                $filename = 'logo_' . $user_id . '_' . uniqid() . '.' . $file_ext;
+                $filepath = $upload_dir . $filename;
+                
+                if (move_uploaded_file($_FILES['logo']['tmp_name'], $filepath)) {
+                    $data['logo_url'] = '/public/uploads/logos/' . $filename;
+                }
+            }
+        } elseif ($edit_id && !empty($card['logo_url'])) {
+            $data['logo_url'] = $card['logo_url'];
         }
         
         if (isset($_FILES['logo2']) && $_FILES['logo2']['error'] === UPLOAD_ERR_OK) {
-            $data['logo_url2'] = '/public/uploads/temp/logo2_' . uniqid() . '.png';
+            $file_ext = strtolower(pathinfo($_FILES['logo2']['name'], PATHINFO_EXTENSION));
+            $allowed_ext = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+            
+            if (in_array($file_ext, $allowed_ext) && $_FILES['logo2']['size'] <= 2 * 1024 * 1024) {
+                $filename = 'logo2_' . $user_id . '_' . uniqid() . '.' . $file_ext;
+                $filepath = $upload_dir . $filename;
+                
+                if (move_uploaded_file($_FILES['logo2']['tmp_name'], $filepath)) {
+                    $data['logo_url2'] = '/public/uploads/logos/' . $filename;
+                }
+            }
+        } elseif ($edit_id && !empty($card['logo_url2'])) {
+            $data['logo_url2'] = $card['logo_url2'];
         }
         
         // Guardar tarjeta
@@ -145,6 +177,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Vista
 ob_start();
 ?>
+<!-- html2canvas CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 <div class="card-creator">
     <h1><?php echo $edit_id ? 'Editar Tarjeta' : 'Crear Nueva Tarjeta'; ?></h1>
     <p>Diseña tu tarjeta digital personalizada</p>
@@ -299,6 +334,14 @@ ob_start();
                         </div>
                     </div>
                     
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Color del Título (Nombre Banco/Empresa)</label>
+                            <input type="color" name="title_color" 
+                                   value="<?php echo htmlspecialchars($card['title_color'] ?? '#000000'); ?>">
+                        </div>
+                    </div>
+                    
                     <div class="form-group">
                         <label>Formato/Proporción</label>
                         <select name="format_ratio">
@@ -343,11 +386,31 @@ ob_start();
                     <h3><i class="fas fa-images"></i> Logos</h3>
                     <div class="form-group">
                         <label>Logo Principal (PNG/JPG, max 2MB)</label>
-                        <input type="file" name="logo" accept="image/png,image/jpeg">
+                        <input type="file" name="logo" id="logo-input" accept="image/png,image/jpeg,image/gif,image/webp">
+                        <?php if (!empty($card['logo_url'])): ?>
+                            <div class="current-logo">
+                                <small>Logo actual:</small>
+                                <img src="<?php echo htmlspecialchars($card['logo_url']); ?>" alt="Logo actual" style="max-height: 50px; margin-left: 10px;">
+                            </div>
+                        <?php endif; ?>
+                        <div id="logo-preview-container" style="margin-top: 10px; display: none;">
+                            <small>Nuevo logo:</small>
+                            <img id="logo-preview-img" src="" alt="Preview" style="max-height: 60px; margin-left: 10px; border-radius: 4px;">
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Logo Adicional (Opcional)</label>
-                        <input type="file" name="logo2" accept="image/png,image/jpeg">
+                        <input type="file" name="logo2" id="logo2-input" accept="image/png,image/jpeg,image/gif,image/webp">
+                        <?php if (!empty($card['logo_url2'])): ?>
+                            <div class="current-logo">
+                                <small>Logo actual:</small>
+                                <img src="<?php echo htmlspecialchars($card['logo_url2']); ?>" alt="Logo 2 actual" style="max-height: 50px; margin-left: 10px;">
+                            </div>
+                        <?php endif; ?>
+                        <div id="logo2-preview-container" style="margin-top: 10px; display: none;">
+                            <small>Nuevo logo:</small>
+                            <img id="logo2-preview-img" src="" alt="Preview" style="max-height: 60px; margin-left: 10px; border-radius: 4px;">
+                        </div>
                     </div>
                 </div>
                 
@@ -607,6 +670,12 @@ ob_start();
     margin-bottom: 0.25rem;
 }
 
+.current-logo {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+}
+
 @media (max-width: 1024px) {
     .creator-layout {
         grid-template-columns: 1fr;
@@ -620,6 +689,46 @@ ob_start();
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Variables para almacenar los logos en base64
+    let logoDataUrl = '<?php echo !empty($card['logo_url']) ? htmlspecialchars($card['logo_url']) : ''; ?>';
+    let logo2DataUrl = '<?php echo !empty($card['logo_url2']) ? htmlspecialchars($card['logo_url2']) : ''; ?>';
+    
+    // Previsualización de logos
+    const logoInput = document.getElementById('logo-input');
+    const logo2Input = document.getElementById('logo2-input');
+    const logoPreviewContainer = document.getElementById('logo-preview-container');
+    const logo2PreviewContainer = document.getElementById('logo2-preview-container');
+    const logoPreviewImg = document.getElementById('logo-preview-img');
+    const logo2PreviewImg = document.getElementById('logo2-preview-img');
+    
+    logoInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                logoDataUrl = event.target.result;
+                logoPreviewImg.src = logoDataUrl;
+                logoPreviewContainer.style.display = 'block';
+                updatePreview();
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    logo2Input.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                logo2DataUrl = event.target.result;
+                logo2PreviewImg.src = logo2DataUrl;
+                logo2PreviewContainer.style.display = 'block';
+                updatePreview();
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
     // Mostrar/ocultar campos según tipo de tarjeta
     const cardTypeRadios = document.querySelectorAll('input[name="card_type"]');
     const bankFields = document.getElementById('bank-fields');
@@ -641,6 +750,7 @@ document.addEventListener('DOMContentLoaded', function() {
     cardTypeRadios.forEach(radio => {
         radio.addEventListener('change', function() {
             showFieldsForType(this.value);
+            updatePreview();
         });
     });
     
@@ -667,12 +777,18 @@ document.addEventListener('DOMContentLoaded', function() {
         row.querySelector('.remove-field').addEventListener('click', function() {
             row.remove();
         });
+        
+        // Agregar eventos para actualizar preview
+        row.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', updatePreview);
+        });
     });
     
     // Eliminar campos existentes
     document.querySelectorAll('.remove-field').forEach(btn => {
         btn.addEventListener('click', function() {
             this.closest('.field-row').remove();
+            updatePreview();
         });
     });
     
@@ -686,6 +802,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // También actualizar al cambiar campos
     document.querySelectorAll('#card-form input, #card-form select').forEach(element => {
         element.addEventListener('input', updatePreview);
+        element.addEventListener('change', updatePreview);
     });
     
     function updatePreview() {
@@ -694,13 +811,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // Obtener configuración visual
         const bgColor = document.querySelector('input[name="background_color"]').value || '#FFFFFF';
         const textColor = document.querySelector('input[name="text_color"]').value || '#000000';
+        const titleColor = document.querySelector('input[name="title_color"]').value || '#000000';
         const fontSize = document.querySelector('input[name="font_size"]').value || '14';
         const fontFamily = document.querySelector('select[name="font_family"]').value || 'Arial';
         const alignment = document.querySelector('select[name="alignment"]').value || 'left';
         
         // Crear HTML de vista previa
         let previewHTML = `
-            <div class="preview-card" style="
+            <div class="preview-card" id="preview-card-content" style="
                 background: ${bgColor};
                 color: ${textColor};
                 font-family: ${fontFamily};
@@ -710,13 +828,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 border-radius: 8px;
                 width: 100%;
                 height: 100%;
+                min-height: 280px;
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
+                position: relative;
             ">
         `;
         
-        // Contenido según tipo - USAR LOS NOMBRES DE CAMPO CORRECTOS
+        // Agregar logos si existen
+        if (logoDataUrl) {
+            previewHTML += `
+                <div style="position: absolute; top: 1rem; right: 1rem;">
+                    <img src="${logoDataUrl}" alt="Logo" style="max-width: 80px; max-height: 60px; object-fit: contain; border-radius: 4px;">
+                </div>
+            `;
+        }
+        
+        if (logo2DataUrl) {
+            previewHTML += `
+                <div style="position: absolute; top: 1rem; left: 1rem;">
+                    <img src="${logo2DataUrl}" alt="Logo 2" style="max-width: 80px; max-height: 60px; object-fit: contain; border-radius: 4px;">
+                </div>
+            `;
+        }
+        
+        // Contenido según tipo
         if (cardType === 'bank') {
             const bankName = document.querySelector('input[name="bank_name"]').value || '';
             const accountType = document.querySelector('input[name="account_type"]').value || '';
@@ -727,7 +864,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (bankName) {
                 previewHTML += `
-                    <h2 style="margin-bottom: 1rem;">${bankName}</h2>
+                    <h2 style="margin-bottom: 1rem; color: ${titleColor};">${bankName}</h2>
                     <p><strong>Tipo de Cuenta:</strong> ${accountType}</p>
                     <p><strong>Número:</strong> ${accountNumber}</p>
                     <p><strong>Nombre:</strong> ${holderName}</p>
@@ -736,7 +873,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
             } else {
                 previewHTML += `
-                    <div class="preview-placeholder">
+                    <div class="preview-placeholder" style="color: ${textColor};">
                         <i class="fas fa-id-card fa-3x"></i>
                         <p>Completa el formulario para ver la vista previa</p>
                     </div>
@@ -753,7 +890,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (companyName) {
                 previewHTML += `
-                    <h2 style="margin-bottom: 1rem;">${companyName}</h2>
+                    <h2 style="margin-bottom: 1rem; color: ${titleColor};">${companyName}</h2>
                     <p><strong>Razón Social:</strong> ${businessName}</p>
                     <p><strong>Giro:</strong> ${industry}</p>
                     <p><strong>Dirección:</strong> ${address}</p>
@@ -763,7 +900,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
             } else {
                 previewHTML += `
-                    <div class="preview-placeholder">
+                    <div class="preview-placeholder" style="color: ${textColor};">
                         <i class="fas fa-id-card fa-3x"></i>
                         <p>Completa el formulario para ver la vista previa</p>
                     </div>
@@ -773,7 +910,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const customTitle = document.querySelector('input[name="custom_title"]').value || '';
             
             if (customTitle) {
-                previewHTML += `<h2 style="margin-bottom: 1rem;">${customTitle}</h2>`;
+                previewHTML += `<h2 style="margin-bottom: 1rem; color: ${titleColor};">${customTitle}</h2>`;
                 
                 // Campos dinámicos
                 const keys = Array.from(document.querySelectorAll('input[name="field_keys[]"]'));
@@ -786,7 +923,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else {
                 previewHTML += `
-                    <div class="preview-placeholder">
+                    <div class="preview-placeholder" style="color: ${textColor};">
                         <i class="fas fa-id-card fa-3x"></i>
                         <p>Completa el formulario para ver la vista previa</p>
                     </div>
@@ -812,9 +949,41 @@ document.addEventListener('DOMContentLoaded', function() {
         exportBtn.disabled = !hasContent;
     }
     
-    // Exportar (simulado)
+    // Exportar usando html2canvas
     exportBtn.addEventListener('click', function() {
-        alert('En la versión completa, esto descargaría la tarjeta como PNG/JPG');
+        const cardContent = document.getElementById('preview-card-content');
+        if (!cardContent) {
+            alert('Por favor, completa el formulario primero.');
+            return;
+        }
+        
+        // Mostrar indicador de carga
+        exportBtn.disabled = true;
+        exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
+        
+        html2canvas(cardContent, {
+            backgroundColor: null,
+            scale: 2,
+            useCORS: true,
+            allowTaint: true
+        }).then(canvas => {
+            // Crear enlace de descarga
+            const link = document.createElement('a');
+            link.download = 'cardgen_tarjeta_' + Date.now() + '.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            
+            // Restaurar botón
+            exportBtn.disabled = false;
+            exportBtn.innerHTML = '<i class="fas fa-download"></i> Descargar';
+        }).catch(err => {
+            console.error('Error al exportar:', err);
+            alert('Hubo un error al generar la imagen. Intenta de nuevo.');
+            
+            // Restaurar botón
+            exportBtn.disabled = false;
+            exportBtn.innerHTML = '<i class="fas fa-download"></i> Descargar';
+        });
     });
     
     // Inicializar vista previa
@@ -825,3 +994,6 @@ document.addEventListener('DOMContentLoaded', function() {
 $content = ob_get_clean();
 require_once __DIR__ . '/../../views/layouts/base.php';
 ?>
+read
+View
+<?php

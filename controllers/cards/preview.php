@@ -34,6 +34,9 @@ $card_data = $card['card_data'];
 // Vista
 ob_start();
 ?>
+<!-- html2canvas CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 <div class="preview-page">
     <div class="preview-header">
         <h1>Vista Previa de Tarjeta</h1>
@@ -43,9 +46,12 @@ ob_start();
             <a href="/create?edit=<?php echo $card_id; ?>" class="btn btn-outline">
                 <i class="fas fa-edit"></i> Editar Tarjeta
             </a>
-            <a href="/export?id=<?php echo $card_id; ?>" class="btn btn-primary">
-                <i class="fas fa-download"></i> Descargar Tarjeta
-            </a>
+            <button id="download-png" class="btn btn-primary">
+                <i class="fas fa-download"></i> Descargar PNG
+            </button>
+            <button id="download-jpg" class="btn btn-secondary">
+                <i class="fas fa-download"></i> Descargar JPG
+            </button>
             <a href="dashboard" class="btn btn-light">
                 <i class="fas fa-arrow-left"></i> Volver al Dashboard
             </a>
@@ -72,6 +78,7 @@ ob_start();
                 <?php
                 $bg_color = $card['background_color'] ?? '#FFFFFF';
                 $text_color = $card['text_color'] ?? '#000000';
+                $title_color = $card['title_color'] ?? $text_color;
                 $font_size = $card['font_size'] ?? 14;
                 $font_family = $card['font_family'] ?? 'Arial';
                 $alignment = $card['alignment'] ?? 'left';
@@ -88,7 +95,7 @@ ob_start();
                     $height = 800;
                 }
                 ?>
-                <div class="card-render" style="
+                <div class="card-render" id="card-render" style="
                     background: <?php echo htmlspecialchars($bg_color); ?>;
                     color: <?php echo htmlspecialchars($text_color); ?>;
                     font-family: <?php echo htmlspecialchars($font_family); ?>;
@@ -103,9 +110,10 @@ ob_start();
                     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
                     position: relative;
                     overflow: hidden;
+                    box-sizing: border-box;
                 ">
                     <?php if ($card['card_type'] === 'bank'): ?>
-                        <h2 style="margin-bottom: 1.5rem; font-size: 1.8em;"><?php echo htmlspecialchars($card_data['bank_name'] ?? 'Banco'); ?></h2>
+                        <h2 style="margin-bottom: 1.5rem; font-size: 1.8em; color: <?php echo htmlspecialchars($title_color); ?>;"><?php echo htmlspecialchars($card_data['bank_name'] ?? 'Banco'); ?></h2>
                         <div class="card-details">
                             <p><strong>Tipo de Cuenta:</strong> <?php echo htmlspecialchars($card_data['account_type'] ?? ''); ?></p>
                             <p><strong>Número de Cuenta:</strong> <?php echo htmlspecialchars($card_data['account_number'] ?? ''); ?></p>
@@ -115,7 +123,7 @@ ob_start();
                         </div>
                         
                     <?php elseif ($card['card_type'] === 'tax'): ?>
-                        <h2 style="margin-bottom: 1.5rem; font-size: 1.8em;"><?php echo htmlspecialchars($card_data['company_name'] ?? 'Empresa'); ?></h2>
+                        <h2 style="margin-bottom: 1.5rem; font-size: 1.8em; color: <?php echo htmlspecialchars($title_color); ?>;"><?php echo htmlspecialchars($card_data['company_name'] ?? 'Empresa'); ?></h2>
                         <div class="card-details">
                             <p><strong>Razón Social:</strong> <?php echo htmlspecialchars($card_data['business_name'] ?? ''); ?></p>
                             <p><strong>Giro:</strong> <?php echo htmlspecialchars($card_data['industry'] ?? ''); ?></p>
@@ -126,7 +134,7 @@ ob_start();
                         </div>
                         
                     <?php elseif ($card['card_type'] === 'custom'): ?>
-                        <h2 style="margin-bottom: 1.5rem; font-size: 1.8em;"><?php echo htmlspecialchars($card_data['title'] ?? 'Tarjeta Personal'); ?></h2>
+                        <h2 style="margin-bottom: 1.5rem; font-size: 1.8em; color: <?php echo htmlspecialchars($title_color); ?>;"><?php echo htmlspecialchars($card_data['title'] ?? 'Tarjeta Personal'); ?></h2>
                         <div class="card-details">
                             <?php if (isset($card_data['fields']) && is_array($card_data['fields'])): ?>
                                 <?php foreach ($card_data['fields'] as $field): ?>
@@ -136,10 +144,15 @@ ob_start();
                         </div>
                     <?php endif; ?>
                     
-                    <?php if ($card['logo_url']): ?>
+                    <?php if (!empty($card['logo_url'])): ?>
                         <div class="card-logo" style="position: absolute; top: 1rem; right: 1rem;">
-                            <!-- Logo se mostraría aquí -->
-                            <div style="width: 60px; height: 60px; background: rgba(255, 255, 255, 0.2); border-radius: 8px;"></div>
+                            <img src="<?php echo htmlspecialchars($card['logo_url']); ?>" alt="Logo" style="max-width: 80px; max-height: 60px; object-fit: contain; border-radius: 4px;">
+                        </div>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($card['logo_url2'])): ?>
+                        <div class="card-logo-2" style="position: absolute; top: 1rem; left: 1rem;">
+                            <img src="<?php echo htmlspecialchars($card['logo_url2']); ?>" alt="Logo 2" style="max-width: 80px; max-height: 60px; object-fit: contain; border-radius: 4px;">
                         </div>
                     <?php endif; ?>
                 </div>
@@ -196,12 +209,12 @@ ob_start();
         </div>
         
         <div class="preview-actions-bottom">
-            <a href="/export?id=<?php echo $card_id; ?>&format=png&resolution=high" class="btn btn-primary btn-lg">
+            <button id="download-png-lg" class="btn btn-primary btn-lg">
                 <i class="fas fa-file-image"></i> Descargar PNG
-            </a>
-            <a href="/export?id=<?php echo $card_id; ?>&format=jpg&resolution=high" class="btn btn-secondary btn-lg">
+            </button>
+            <button id="download-jpg-lg" class="btn btn-secondary btn-lg">
                 <i class="fas fa-file-image"></i> Descargar JPG
-            </a>
+            </button>
             <a href="/create?edit=<?php echo $card_id; ?>" class="btn btn-outline btn-lg">
                 <i class="fas fa-edit"></i> Editar Tarjeta
             </a>
@@ -252,6 +265,11 @@ ob_start();
 
 .card-preview {
     margin-bottom: 2rem;
+    display: flex;
+    justify-content: center;
+    padding: 2rem;
+    background: #f5f5f5;
+    border-radius: var(--border-radius);
 }
 
 .card-render {
@@ -388,18 +406,96 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         
         if (e.deltaY < 0) {
-            // Scroll up - zoom in
             if (currentScale < maxScale) {
                 currentScale += scaleStep;
                 updateScale();
             }
         } else {
-            // Scroll down - zoom out
             if (currentScale > minScale) {
                 currentScale -= scaleStep;
                 updateScale();
             }
         }
+    });
+    
+    // Función para descargar la tarjeta
+    function downloadCard(format) {
+        const cardElement = document.getElementById('card-render');
+        
+        const originalTransform = cardElement.style.transform;
+        cardElement.style.transform = 'scale(1)';
+        
+        html2canvas(cardElement, {
+            backgroundColor: format === 'png' ? null : '#ffffff',
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            logging: false
+        }).then(canvas => {
+            cardElement.style.transform = originalTransform;
+            
+            const link = document.createElement('a');
+            const timestamp = Date.now();
+            
+            if (format === 'png') {
+                link.download = `cardgen_tarjeta_${timestamp}.png`;
+                link.href = canvas.toDataURL('image/png');
+            } else {
+                link.download = `cardgen_tarjeta_${timestamp}.jpg`;
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
+            }
+            
+            link.click();
+        }).catch(err => {
+            console.error('Error al exportar:', err);
+            alert('Hubo un error al generar la imagen. Por favor, intenta de nuevo.');
+            cardElement.style.transform = originalTransform;
+        });
+    }
+    
+    // Eventos de descarga
+    document.getElementById('download-png').addEventListener('click', function() {
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
+        this.disabled = true;
+        const btn = this;
+        setTimeout(() => {
+            downloadCard('png');
+            btn.innerHTML = '<i class="fas fa-download"></i> Descargar PNG';
+            btn.disabled = false;
+        }, 100);
+    });
+    
+    document.getElementById('download-jpg').addEventListener('click', function() {
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
+        this.disabled = true;
+        const btn = this;
+        setTimeout(() => {
+            downloadCard('jpg');
+            btn.innerHTML = '<i class="fas fa-download"></i> Descargar JPG';
+            btn.disabled = false;
+        }, 100);
+    });
+    
+    document.getElementById('download-png-lg').addEventListener('click', function() {
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
+        this.disabled = true;
+        const btn = this;
+        setTimeout(() => {
+            downloadCard('png');
+            btn.innerHTML = '<i class="fas fa-file-image"></i> Descargar PNG';
+            btn.disabled = false;
+        }, 100);
+    });
+    
+    document.getElementById('download-jpg-lg').addEventListener('click', function() {
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
+        this.disabled = true;
+        const btn = this;
+        setTimeout(() => {
+            downloadCard('jpg');
+            btn.innerHTML = '<i class="fas fa-file-image"></i> Descargar JPG';
+            btn.disabled = false;
+        }, 100);
     });
 });
 </script>

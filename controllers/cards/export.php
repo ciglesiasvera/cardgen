@@ -30,26 +30,13 @@ if (!$card) {
     exit();
 }
 
-// Procesar exportación
-if ($_SERVER['REQUEST_METHOD'] === 'POST' || isset($_GET['download'])) {
-    // En un entorno real, aquí usaríamos html2canvas o similar
-    // Para este MVP, simularemos la exportación con un mensaje
-    
-    $filename = 'cardgen_' . $card_id . '_' . date('Ymd_His') . '.' . $format;
-    
-    // Simular generación de imagen
-    // En producción, esto generaría la imagen real usando JavaScript/html2canvas
-    
-    // Redireccionar con mensaje de éxito
-    redirectWithMessage('/dashboard', 'success', 
-        "¡Tarjeta exportada como $filename! En la versión completa, se descargaría el archivo.");
-    exit();
-}
-
 // Vista de configuración de exportación
 $title = 'Exportar Tarjeta';
 ob_start();
 ?>
+<!-- html2canvas CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 <div class="export-page">
     <h1>Exportar Tarjeta</h1>
     <p>Configura las opciones de exportación para tu tarjeta digital</p>
@@ -62,29 +49,45 @@ ob_start();
                 $card_data = $card['card_data'];
                 $bg_color = $card['background_color'] ?? '#FFFFFF';
                 $text_color = $card['text_color'] ?? '#000000';
+                $title_color = $card['title_color'] ?? $text_color;
                 $font_size = $card['font_size'] ?? 14;
                 $font_family = $card['font_family'] ?? 'Arial';
                 $alignment = $card['alignment'] ?? 'left';
+                $format_ratio = $card['format_ratio'] ?? '16:9';
+                
+                $width = 800;
+                $height = 450;
+                
+                if ($format_ratio === '1:1') {
+                    $width = $height = 600;
+                } elseif ($format_ratio === '2x4') {
+                    $width = 400;
+                    $height = 800;
+                }
                 ?>
-                <div class="export-card" style="
+                <div class="export-card" id="export-card" style="
                     background: <?php echo htmlspecialchars($bg_color); ?>;
                     color: <?php echo htmlspecialchars($text_color); ?>;
                     font-family: <?php echo htmlspecialchars($font_family); ?>;
                     font-size: <?php echo htmlspecialchars($font_size); ?>px;
                     text-align: <?php echo htmlspecialchars($alignment); ?>;
+                    width: <?php echo $width; ?>px;
+                    max-width: 100%;
                     padding: 2rem;
                     border-radius: 8px;
-                    margin: 1rem 0;
+                    margin: 1rem auto;
+                    position: relative;
+                    box-sizing: border-box;
                 ">
                     <?php if ($card['card_type'] === 'bank'): ?>
-                        <h2><?php echo htmlspecialchars($card_data['bank_name'] ?? 'Banco'); ?></h2>
+                        <h2 style="color: <?php echo htmlspecialchars($title_color); ?>;"><?php echo htmlspecialchars($card_data['bank_name'] ?? 'Banco'); ?></h2>
                         <p><strong>Tipo de Cuenta:</strong> <?php echo htmlspecialchars($card_data['account_type'] ?? ''); ?></p>
                         <p><strong>Número:</strong> <?php echo htmlspecialchars($card_data['account_number'] ?? ''); ?></p>
                         <p><strong>Nombre:</strong> <?php echo htmlspecialchars($card_data['name'] ?? ''); ?></p>
                         <p><strong>RUT:</strong> <?php echo htmlspecialchars($card_data['rut'] ?? ''); ?></p>
                         <p><strong>Email:</strong> <?php echo htmlspecialchars($card_data['email'] ?? ''); ?></p>
                     <?php elseif ($card['card_type'] === 'tax'): ?>
-                        <h2><?php echo htmlspecialchars($card_data['company_name'] ?? 'Empresa'); ?></h2>
+                        <h2 style="color: <?php echo htmlspecialchars($title_color); ?>;"><?php echo htmlspecialchars($card_data['company_name'] ?? 'Empresa'); ?></h2>
                         <p><strong>Razón Social:</strong> <?php echo htmlspecialchars($card_data['business_name'] ?? ''); ?></p>
                         <p><strong>Giro:</strong> <?php echo htmlspecialchars($card_data['industry'] ?? ''); ?></p>
                         <p><strong>Dirección:</strong> <?php echo htmlspecialchars($card_data['address'] ?? ''); ?></p>
@@ -92,12 +95,24 @@ ob_start();
                         <p><strong>Email:</strong> <?php echo htmlspecialchars($card_data['email'] ?? ''); ?></p>
                         <p><strong>RUT:</strong> <?php echo htmlspecialchars($card_data['rut'] ?? ''); ?></p>
                     <?php elseif ($card['card_type'] === 'custom'): ?>
-                        <h2><?php echo htmlspecialchars($card_data['title'] ?? 'Tarjeta Personal'); ?></h2>
+                        <h2 style="color: <?php echo htmlspecialchars($title_color); ?>;"><?php echo htmlspecialchars($card_data['title'] ?? 'Tarjeta Personal'); ?></h2>
                         <?php if (isset($card_data['fields']) && is_array($card_data['fields'])): ?>
                             <?php foreach ($card_data['fields'] as $field): ?>
                                 <p><strong><?php echo htmlspecialchars($field['key'] ?? ''); ?>:</strong> <?php echo htmlspecialchars($field['value'] ?? ''); ?></p>
                             <?php endforeach; ?>
                         <?php endif; ?>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($card['logo_url'])): ?>
+                        <div style="position: absolute; top: 1rem; right: 1rem;">
+                            <img src="<?php echo htmlspecialchars($card['logo_url']); ?>" alt="Logo" style="max-width: 80px; max-height: 60px; object-fit: contain; border-radius: 4px;">
+                        </div>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($card['logo_url2'])): ?>
+                        <div style="position: absolute; top: 1rem; left: 1rem;">
+                            <img src="<?php echo htmlspecialchars($card['logo_url2']); ?>" alt="Logo 2" style="max-width: 80px; max-height: 60px; object-fit: contain; border-radius: 4px;">
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -106,7 +121,7 @@ ob_start();
         <div class="export-settings">
             <h3>Opciones de Exportación</h3>
             
-            <form method="GET" action="">
+            <form id="export-form">
                 <input type="hidden" name="id" value="<?php echo htmlspecialchars($card_id); ?>">
                 
                 <div class="form-section">
@@ -136,62 +151,28 @@ ob_start();
                     <h4><i class="fas fa-expand"></i> Resolución</h4>
                     <div class="resolution-options">
                         <label class="resolution-option">
-                            <input type="radio" name="resolution" value="low" checked>
+                            <input type="radio" name="resolution" value="1">
                             <div class="resolution-content">
                                 <span>Baja (Web)</span>
-                                <small>72 DPI, ideal para web</small>
+                                <small>1x, ideal para web</small>
                             </div>
                         </label>
                         
                         <label class="resolution-option">
-                            <input type="radio" name="resolution" value="medium">
+                            <input type="radio" name="resolution" value="2" checked>
                             <div class="resolution-content">
                                 <span>Media</span>
-                                <small>150 DPI, buena calidad</small>
+                                <small>2x, buena calidad</small>
                             </div>
                         </label>
                         
                         <label class="resolution-option">
-                            <input type="radio" name="resolution" value="high">
+                            <input type="radio" name="resolution" value="3">
                             <div class="resolution-content">
                                 <span>Alta</span>
-                                <small>300 DPI, calidad impresión</small>
+                                <small>3x, calidad impresión</small>
                             </div>
                         </label>
-                    </div>
-                </div>
-                
-                <div class="form-section">
-                    <h4><i class="fas fa-ruler-combined"></i> Tamaño</h4>
-                    <div class="size-options">
-                        <label class="size-option">
-                            <input type="radio" name="size" value="original" checked>
-                            <div class="size-content">
-                                <span>Formato Original</span>
-                                <small><?php echo htmlspecialchars($card['format_ratio'] ?? '16:9'); ?></small>
-                            </div>
-                        </label>
-                        
-                        <label class="size-option">
-                            <input type="radio" name="size" value="custom">
-                            <div class="size-content">
-                                <span>Personalizado</span>
-                                <small>Define ancho y alto</small>
-                            </div>
-                        </label>
-                    </div>
-                    
-                    <div id="custom-size" style="display: none; margin-top: 1rem;">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Ancho (px)</label>
-                                <input type="number" name="custom_width" min="100" max="4000" value="800">
-                            </div>
-                            <div class="form-group">
-                                <label>Alto (px)</label>
-                                <input type="number" name="custom_height" min="100" max="4000" value="450">
-                            </div>
-                        </div>
                     </div>
                 </div>
                 
@@ -199,7 +180,7 @@ ob_start();
                     <a href="/preview?id=<?php echo $card_id; ?>" class="btn btn-outline">
                         <i class="fas fa-arrow-left"></i> Volver
                     </a>
-                    <button type="submit" name="download" value="1" class="btn btn-primary">
+                    <button type="button" id="download-btn" class="btn btn-primary">
                         <i class="fas fa-download"></i> Descargar Ahora
                     </button>
                 </div>
@@ -211,7 +192,7 @@ ob_start();
                     <li>Las tarjetas se exportan con la máxima calidad posible</li>
                     <li>PNG es recomendado para fondos transparentes</li>
                     <li>JPG es mejor para compartir en redes sociales</li>
-                    <li>300 DPI es ideal para impresión profesional</li>
+                    <li>Resolución alta (3x) es ideal para impresión profesional</li>
                 </ul>
             </div>
         </div>
@@ -219,217 +200,73 @@ ob_start();
 </div>
 
 <style>
-.export-page {
-    padding: 2rem 0;
-}
-
-.export-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 3rem;
-    margin-top: 2rem;
-}
-
-.export-preview, .export-settings {
-    background: white;
-    border-radius: var(--border-radius);
-    padding: 2rem;
-    box-shadow: var(--shadow);
-}
-
-.export-preview h3, .export-settings h3 {
-    margin-bottom: 1.5rem;
-    color: var(--dark);
-    border-bottom: 2px solid var(--primary);
-    padding-bottom: 0.5rem;
-}
-
-.card-export-preview {
-    padding: 1rem;
-    background: var(--light);
-    border-radius: var(--border-radius);
-    border: 1px solid var(--gray-light);
-}
-
-.export-card {
-    min-height: 300px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
-
-.form-section {
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid var(--gray-light);
-}
-
-.form-section:last-child {
-    border-bottom: none;
-}
-
-.form-section h4 {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-    color: var(--dark);
-}
-
-.format-options, .resolution-options, .size-options {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 1rem;
-}
-
-.format-option input[type="radio"],
-.resolution-option input[type="radio"],
-.size-option input[type="radio"] {
-    display: none;
-}
-
-.format-content, .resolution-content, .size-content {
-    padding: 1rem;
-    border: 2px solid var(--gray-light);
-    border-radius: var(--border-radius);
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.format-content i {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
-    color: var(--gray);
-}
-
-.format-content span, .resolution-content span, .size-content span {
-    display: block;
-    font-weight: 600;
-    margin-bottom: 0.25rem;
-}
-
-.format-content small, .resolution-content small, .size-content small {
-    display: block;
-    font-size: 0.8rem;
-    color: var(--gray);
-}
-
-.format-option input[type="radio"]:checked + .format-content,
-.resolution-option input[type="radio"]:checked + .resolution-content,
-.size-option input[type="radio"]:checked + .size-content {
-    border-color: var(--primary);
-    background: rgba(79, 70, 229, 0.1);
-}
-
-.format-option input[type="radio"]:checked + .format-content i {
-    color: var(--primary);
-}
-
-.form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-}
-
-.form-actions {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 2rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--gray-light);
-}
-
-.export-info {
-    margin-top: 2rem;
-    padding: 1.5rem;
-    background: var(--light);
-    border-radius: var(--border-radius);
-}
-
-.export-info h4 {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-    color: var(--dark);
-}
-
-.export-info ul {
-    padding-left: 1.5rem;
-    color: var(--gray);
-}
-
-.export-info li {
-    margin-bottom: 0.5rem;
-}
-
-@media (max-width: 1024px) {
-    .export-container {
-        grid-template-columns: 1fr;
-    }
-    
-    .format-options, .resolution-options, .size-options {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (max-width: 768px) {
-    .export-container {
-        gap: 2rem;
-    }
-    
-    .export-preview, .export-settings {
-        padding: 1.5rem;
-    }
-    
-    .format-options, .resolution-options, .size-options {
-        grid-template-columns: 1fr;
-    }
-    
-    .form-row {
-        grid-template-columns: 1fr;
-    }
-    
-    .form-actions {
-        flex-direction: column;
-        gap: 1rem;
-    }
-}
+.export-page { padding: 2rem 0; }
+.export-container { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; margin-top: 2rem; }
+.export-preview, .export-settings { background: white; border-radius: var(--border-radius); padding: 2rem; box-shadow: var(--shadow); }
+.export-preview h3, .export-settings h3 { margin-bottom: 1.5rem; color: var(--dark); border-bottom: 2px solid var(--primary); padding-bottom: 0.5rem; }
+.card-export-preview { padding: 1rem; background: var(--light); border-radius: var(--border-radius); border: 1px solid var(--gray-light); display: flex; justify-content: center; }
+.export-card { min-height: 300px; display: flex; flex-direction: column; justify-content: center; }
+.form-section { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--gray-light); }
+.form-section:last-child { border-bottom: none; }
+.form-section h4 { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; color: var(--dark); }
+.format-options, .resolution-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; }
+.format-option input[type="radio"], .resolution-option input[type="radio"] { display: none; }
+.format-content, .resolution-content { padding: 1rem; border: 2px solid var(--gray-light); border-radius: var(--border-radius); text-align: center; cursor: pointer; transition: all 0.3s; }
+.format-content i { font-size: 2rem; margin-bottom: 0.5rem; color: var(--gray); }
+.format-content span, .resolution-content span { display: block; font-weight: 600; margin-bottom: 0.25rem; }
+.format-content small, .resolution-content small { display: block; font-size: 0.8rem; color: var(--gray); }
+.format-option input[type="radio"]:checked + .format-content, .resolution-option input[type="radio"]:checked + .resolution-content { border-color: var(--primary); background: rgba(79, 70, 229, 0.1); }
+.format-option input[type="radio"]:checked + .format-content i { color: var(--primary); }
+.form-actions { display: flex; justify-content: space-between; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--gray-light); }
+.export-info { margin-top: 2rem; padding: 1.5rem; background: var(--light); border-radius: var(--border-radius); }
+.export-info h4 { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; color: var(--dark); }
+.export-info ul { padding-left: 1.5rem; color: var(--gray); }
+.export-info li { margin-bottom: 0.5rem; }
+@media (max-width: 1024px) { .export-container { grid-template-columns: 1fr; } }
+@media (max-width: 768px) { .export-container { gap: 2rem; } .export-preview, .export-settings { padding: 1.5rem; } .form-actions { flex-direction: column; gap: 1rem; } }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Mostrar/ocultar tamaño personalizado
-    const sizeOptions = document.querySelectorAll('input[name="size"]');
-    const customSizeDiv = document.getElementById('custom-size');
+    const downloadBtn = document.getElementById('download-btn');
+    const exportCard = document.getElementById('export-card');
     
-    sizeOptions.forEach(option => {
-        option.addEventListener('change', function() {
-            customSizeDiv.style.display = this.value === 'custom' ? 'block' : 'none';
+    downloadBtn.addEventListener('click', function() {
+        const format = document.querySelector('input[name="format"]:checked').value;
+        const scale = parseInt(document.querySelector('input[name="resolution"]:checked').value);
+        
+        downloadBtn.disabled = true;
+        downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
+        
+        html2canvas(exportCard, {
+            backgroundColor: format === 'png' ? null : '#ffffff',
+            scale: scale,
+            useCORS: true,
+            allowTaint: true,
+            logging: false
+        }).then(canvas => {
+            const link = document.createElement('a');
+            const timestamp = Date.now();
+            
+            if (format === 'png') {
+                link.download = `cardgen_tarjeta_${timestamp}.png`;
+                link.href = canvas.toDataURL('image/png');
+            } else {
+                link.download = `cardgen_tarjeta_${timestamp}.jpg`;
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
+            }
+            
+            link.click();
+            
+            downloadBtn.disabled = false;
+            downloadBtn.innerHTML = '<i class="fas fa-download"></i> Descargar Ahora';
+        }).catch(err => {
+            console.error('Error al exportar:', err);
+            alert('Hubo un error al generar la imagen. Por favor, intenta de nuevo.');
+            downloadBtn.disabled = false;
+            downloadBtn.innerHTML = '<i class="fas fa-download"></i> Descargar Ahora';
         });
     });
-    
-    // Establecer valores predeterminados según el formato de la tarjeta
-    const formatRatio = "<?php echo $card['format_ratio'] ?? '16:9'; ?>";
-    let defaultWidth = 800;
-    let defaultHeight = 450;
-    
-    if (formatRatio === '1:1') {
-        defaultWidth = defaultHeight = 600;
-    } else if (formatRatio === '2x4') {
-        defaultWidth = 400;
-        defaultHeight = 800;
-    }
-    
-    // Actualizar valores predeterminados si existen
-    const widthInput = document.querySelector('input[name="custom_width"]');
-    const heightInput = document.querySelector('input[name="custom_height"]');
-    
-    if (widthInput && heightInput) {
-        widthInput.value = defaultWidth;
-        heightInput.value = defaultHeight;
-    }
 });
 </script>
 <?php
