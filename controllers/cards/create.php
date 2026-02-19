@@ -693,6 +693,17 @@ document.addEventListener('DOMContentLoaded', function() {
     let logoDataUrl = '<?php echo !empty($card['logo_url']) ? htmlspecialchars($card['logo_url']) : ''; ?>';
     let logo2DataUrl = '<?php echo !empty($card['logo_url2']) ? htmlspecialchars($card['logo_url2']) : ''; ?>';
     
+    // Si hay logos existentes, mostrar previsualización inmediata
+    if (logoDataUrl) {
+        logoPreviewImg.src = logoDataUrl;
+        logoPreviewContainer.style.display = 'block';
+    }
+    
+    if (logo2DataUrl) {
+        logo2PreviewImg.src = logo2DataUrl;
+        logo2PreviewContainer.style.display = 'block';
+    }
+    
     // Previsualización de logos
     const logoInput = document.getElementById('logo-input');
     const logo2Input = document.getElementById('logo2-input');
@@ -994,6 +1005,3 @@ document.addEventListener('DOMContentLoaded', function() {
 $content = ob_get_clean();
 require_once __DIR__ . '/../../views/layouts/base.php';
 ?>
-read
-View
-<?php

@@ -294,7 +294,7 @@
                         <li><a href="/">Inicio</a></li>
                         <li><a href="register">Registrarse</a></li>
                         <li><a href="login">Iniciar Sesión</a></li>
-                        <li><a href="#">Política de Privacidad</a></li>
+                        <li><a href="/privacy">Política de Privacidad</a></li>
                         <li><a href="#">Términos de Servicio</a></li>
                     </ul>
                 </div>
